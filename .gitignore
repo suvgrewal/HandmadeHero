@@ -1,0 +1,24 @@
+# Ignore build outputs
+/build/
+/bin/
+/obj/
+
+# executables and objects
+*.exe
+*.obj
+
+# Visual Studio / VSCode specific
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Logs or temporary files
+*.log
+*.tmp
+*.bak
