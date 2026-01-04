@@ -5,6 +5,7 @@
 
 // TODO: Implement sinf function
 #include <math.h>
+#include <stdio.h>
 
 #define internal static
 #define local_persist static
@@ -509,6 +510,10 @@ int CALLBACK WinMain(
     // WindowClass.hIcon;
     WindowClass.lpszClassName = "HandmadeHeroWindowClass";
 
+    LARGE_INTEGER PerfCounterFrequencyResult;
+    QueryPerformanceFrequency(&PerfCounterFrequencyResult);
+    int64 PerfCountFrequency = PerfCounterFrequencyResult.QuadPart;
+
     if (RegisterClassA(&WindowClass))
     {
         HWND Window =
@@ -550,6 +555,12 @@ int CALLBACK WinMain(
             GlobalSecondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
             
             GlobalRunning = true;
+            
+            LARGE_INTEGER LastCounter;
+            QueryPerformanceCounter(&LastCounter);
+
+            int64 LastCycleCount = __rdtsc();
+
             while (GlobalRunning)
             {
                 MSG Message;
@@ -657,7 +668,26 @@ int CALLBACK WinMain(
                 Win32DisplayBufferInWindow(&GlobalBackbuffer, DeviceContext, 
                                            Dimension.Width, Dimension.Height);
                 
-                XOffset++;
+                LARGE_INTEGER EndCounter;
+                QueryPerformanceCounter(&EndCounter);
+
+                int64 EndCycleCount = __rdtsc();
+
+                // TODO: Display the value here 
+                int64 CyclesElapsed = EndCycleCount - LastCycleCount;
+                int64 CounterElapsed = EndCounter.QuadPart - LastCounter.QuadPart;
+                real32 MSPerFrame = ((1000.0f * CounterElapsed) / (real32)PerfCountFrequency);
+                real32 FPS = (real32)PerfCountFrequency / (real32) CounterElapsed;
+                real32 MCPF = ((real32)CyclesElapsed / (1000.0f * 1000.0f));
+
+                char Buffer[256];
+                sprintf(Buffer, "%f.02MS/F \n%f.02FPS \n%f.02MC/F\n", MSPerFrame, FPS, MCPF);
+                OutputDebugStringA(Buffer);
+
+                LastCounter = EndCounter;
+                LastCycleCount = EndCycleCount;
+
+                XOffset++; // TODO: Check if this is still being used
             }
         }
         else
