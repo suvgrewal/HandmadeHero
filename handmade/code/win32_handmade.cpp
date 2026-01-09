@@ -27,6 +27,8 @@ typedef uint64_t uint64;
 typedef float real32;
 typedef double real64;
 
+#include "handmade.cpp"
+
 struct win32_offscreen_buffer
 {
     BITMAPINFO Info;
@@ -76,6 +78,12 @@ global_variable x_input_set_state* XInputSetState_ = XInputSetStateStub;
 #define DIRECT_SOUND_CREATE(name) HRESULT WINAPI name(LPCGUID pcGuidDevice, LPDIRECTSOUND *ppDS, LPUNKNOWN pUnkOuter)
 typedef DIRECT_SOUND_CREATE(direct_sound_create);
 
+void *
+PlatformLoadFile(char* Filename)
+{
+    // NOTE: Implements the Win32 file loading
+    return 0;
+}
 
 internal void
 Win32LoadXInput()
@@ -196,34 +204,6 @@ Win32GetWindowDimension(HWND Window)
     Result.Height = ClientRect.bottom - ClientRect.top;
 
     return Result;
-}
-
-internal void
-RenderWeirdGradient(win32_offscreen_buffer *Buffer, int XOffset, int YOffset)
-{
-    // TODO: See what optimizer does if passing by value
-
-    // Bytes to move
-    uint8* Row = (uint8 *)Buffer->Memory;
-
-    for (int Y = 0;
-        Y < Buffer->Height;
-        Y++)
-    {
-        uint32 *Pixel = (uint32 *)Row;
-        for (int X = 0;
-            X < Buffer->Width;
-            X++)
-        {
-            uint8 Blue  = (uint8)(X + XOffset);
-            uint8 Green = (uint8)(Y + YOffset);
-            uint8 Red   = 0;
-            
-            *Pixel++ = ((Red << 16) | (Green << 8) | Blue);
-        }
-
-        Row += Buffer->Pitch;
-    }
 }
 
 internal void 
@@ -632,8 +612,13 @@ int CALLBACK WinMain(
                         // NOTE: Controller is not available
                     }
                 }
-
-                RenderWeirdGradient(&GlobalBackbuffer, XOffset, YOffset);
+                   
+                game_offscreen_buffer GameBuffer = {};
+                GameBuffer.Memory = GlobalBackbuffer.Memory;
+                GameBuffer.Width = GlobalBackbuffer.Width;
+                GameBuffer.Height = GlobalBackbuffer.Height;
+                GameBuffer.Pitch = GlobalBackbuffer.Pitch;
+                GameUpdateAndRender(&GameBuffer, XOffset, YOffset);
 
                 DWORD PlayCursor;
                 DWORD WriteCursor;
@@ -644,7 +629,6 @@ int CALLBACK WinMain(
 
                     DWORD BytesToWrite;
 
-                    //TODO: Change this to using lower latency offset from the play cursor when actually starting having sound effects
                     if (ByteToLock == PlayCursor)
                     {
                         BytesToWrite = 0;
@@ -668,21 +652,22 @@ int CALLBACK WinMain(
                 Win32DisplayBufferInWindow(&GlobalBackbuffer, DeviceContext, 
                                            Dimension.Width, Dimension.Height);
                 
+                int64 EndCycleCount = __rdtsc();
+                
                 LARGE_INTEGER EndCounter;
                 QueryPerformanceCounter(&EndCounter);
-
-                int64 EndCycleCount = __rdtsc();
-
-                // TODO: Display the value here 
-                int64 CyclesElapsed = EndCycleCount - LastCycleCount;
+                   
+                uint64 CyclesElapsed = EndCycleCount - LastCycleCount;
                 int64 CounterElapsed = EndCounter.QuadPart - LastCounter.QuadPart;
                 real32 MSPerFrame = ((1000.0f * CounterElapsed) / (real32)PerfCountFrequency);
                 real32 FPS = (real32)PerfCountFrequency / (real32) CounterElapsed;
                 real32 MCPF = ((real32)CyclesElapsed / (1000.0f * 1000.0f));
 
+                /*
                 char Buffer[256];
                 sprintf(Buffer, "%f.02MS/F \n%f.02FPS \n%f.02MC/F\n", MSPerFrame, FPS, MCPF);
                 OutputDebugStringA(Buffer);
+                */
 
                 LastCounter = EndCounter;
                 LastCycleCount = EndCycleCount;
